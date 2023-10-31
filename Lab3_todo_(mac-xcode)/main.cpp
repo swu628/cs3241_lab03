@@ -155,8 +155,34 @@ void MakeReflectionImage( void )
     //****************************
     // WRITE YOUR CODE HERE.
     //****************************
+    
+    // STEP 1: Clears the correct buffers.
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+    // STEP 2: Sets up the correct view volume for the imaginary viewpoint.
+    // Using the provided constants for the perspective setup.
+    gluPerspective(38.0, (GLfloat)winWidth / (GLfloat)winHeight, 0.1, SCENE_RADIUS * 2.0);
 
+    // STEP 3: Sets up the imaginary viewpoint.
+    // Assuming the imaginary viewpoint is directly above the table, looking straight down.
+    gluLookAt(LOOKAT_X, LOOKAT_Y, TABLETOP_Z + EYE_INIT_DIST, // eye position
+              LOOKAT_X, LOOKAT_Y, TABLETOP_Z,                 // center position
+              0.0, 1.0, 0.0);                                 // up vector
+
+    // STEP 4: Sets up the light source positions in the world space.
+    glLightfv(GL_LIGHT0, GL_POSITION, light0Position);
+    glLightfv(GL_LIGHT1, GL_POSITION, light1Position);
+
+    // STEP 5: Draws the scene (may not need to draw all objects).
+    DrawRoom();
+    DrawTeapot();
+    DrawSphere();
+    // Note: We might not draw the table itself since we're capturing its reflection.
+
+    // STEP 6: Read the correct color buffer into the correct texture object.
+    glBindTexture(GL_TEXTURE_2D, reflectionTexObj);
+    glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 0, 0, winWidth, winHeight, 0);
+  
 }
 
 
@@ -529,6 +555,17 @@ void SetUpTextureMaps( void )
     // WRITE YOUR CODE HERE.
     //****************************
 
+    // Set up the texture object reflectionTexObj for storing the reflection texture map
+    glGenTextures(1, &reflectionTexObj);
+    glBindTexture(GL_TEXTURE_2D, reflectionTexObj);
+
+    // Make sure that mipmapping is used
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    // Make sure that whenever a new image is copied to the texture object,
+    // all other lower-resolution mipmap levels are automatically generated
+    glTexParameteri(GL_TEXTURE_2D, GL_GENERATE_MIPMAP, GL_TRUE);
 
 }
 
@@ -907,9 +944,41 @@ void DrawTable( void )
     //****************************
     // WRITE YOUR CODE HERE.
     //****************************
+    
+    // Define the texture coordinates for the tabletop rectangle
+    float s0 = 0.0f, t0 = 0.0f; // Bottom-left corner
+    float s1 = 1.0f, t1 = 0.0f; // Bottom-right corner
+    float s2 = 1.0f, t2 = 1.0f; // Top-right corner
+    float s3 = 0.0f, t3 = 1.0f; // Top-left corner
 
+    // Define the vertices for the tabletop rectangle
+    float x0 = TABLETOP_X1, y0 = TABLETOP_Y1, z0 = TABLETOP_Z;
+    float x1 = TABLETOP_X2, y1 = TABLETOP_Y1, z1 = TABLETOP_Z;
+    float x2 = TABLETOP_X2, y2 = TABLETOP_Y2, z2 = TABLETOP_Z;
+    float x3 = TABLETOP_X1, y3 = TABLETOP_Y2, z3 = TABLETOP_Z;
 
+    // Define the subdivision steps for the tabletop rectangle
+    int uSteps = 10; // Example value, adjust as needed
+    int vSteps = 10; // Example value, adjust as needed
+    
+    // Draw the subdivided tabletop rectangle
+    SubdivideAndDrawQuad(uSteps, vSteps, s0, t0, x0, y0, z0, s1, t1, x1, y1, z1, s2, t2, x2, y2, z2, s3, t3, x3, y3, z3);
 
+    // The reflection on the tabletop should not be 100%
+    GLfloat reflectionIntensity = 0.7f;
+    // Assuming a generic wood color for the diffuse color
+    GLfloat diffuseColor[] = {0.6f, 0.4f, 0.2f, 1.0f};
+    glMaterialfv(GL_FRONT, GL_DIFFUSE, diffuseColor);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable(GL_BLEND);
+    glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+    glColor4f(1.0f, 1.0f, 1.0f, reflectionIntensity);
+
+    // Draw the tabletop with the texture
+    glBindTexture(GL_TEXTURE_2D, reflectionTexObj);
+    SetUpTextureMaps();
+
+    glDisable(GL_BLEND);
 
 // Sides.
 
