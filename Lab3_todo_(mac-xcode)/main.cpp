@@ -128,7 +128,7 @@ void DrawRoom( void );
 void DrawTeapot( void );
 void DrawSphere( void );
 void DrawTable( void );
-void DrawCustomObject(void);  // Draw cube for task 2
+void DrawCube(void);  // Draw cube for task 2
 
 
 
@@ -186,7 +186,7 @@ void MakeReflectionImage( void )
     DrawRoom();
     DrawTeapot();
     DrawSphere();
-    DrawCustomObject();
+    DrawCube();
 
     // STEP 6
     glReadBuffer(GL_BACK);
@@ -238,7 +238,7 @@ void MyDisplay( void )
     DrawTeapot();
     DrawSphere();
     DrawTable();
-    DrawCustomObject();
+    DrawCube();
 
     glutSwapBuffers();
 }
@@ -1102,7 +1102,7 @@ void DrawTable( void )
 // Draw a texture-mapped cube.
 /////////////////////////////////////////////////////////////////////////////
 
-void DrawCustomObject(void)
+void DrawCube(void)
 {
     
     float cubeSize = 0.45f; // Size of the cube
