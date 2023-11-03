@@ -80,6 +80,7 @@ const char ceilingTexFile[] = "images/ceiling.jpg";
 const char brickTexFile[] = "images/brick.jpg";
 const char checkerTexFile[] = "images/checker.png";
 const char spotsTexFile[] = "images/spots.png";
+const char paperTexFile[] = "images/paper.jpg";
 
 
 
@@ -113,6 +114,7 @@ GLuint ceilingTexObj;
 GLuint brickTexObj;
 GLuint checkerTexObj;
 GLuint spotsTexObj;
+GLuint paperTexObj;
 
 // Others.
 bool drawAxes = true;           // Draw world coordinate frame axes iff true.
@@ -126,6 +128,7 @@ void DrawRoom( void );
 void DrawTeapot( void );
 void DrawSphere( void );
 void DrawTable( void );
+void DrawCustomObject(void);
 
 
 
@@ -160,14 +163,24 @@ void MakeReflectionImage( void )
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     // STEP 2: Sets up the correct view volume for the imaginary viewpoint.
-    // Using the provided constants for the perspective setup.
-    gluPerspective(38.0, (GLfloat)winWidth / (GLfloat)winHeight, 0.1, SCENE_RADIUS * 2.0);
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    glFrustum( // Should basically be the table itself
+        TABLETOP_Y1 - eyePos[1], TABLETOP_Y2 - eyePos[1],
+        TABLETOP_X1 - eyePos[0], TABLETOP_X2 - eyePos[0],
+        eyePos[2] -  TABLETOP_Z, 1.5 *  SCENE_RADIUS); // Near and far plane
 
     // STEP 3: Sets up the imaginary viewpoint.
-    // Assuming the imaginary viewpoint is directly above the table, looking straight down.
-    gluLookAt(LOOKAT_X, LOOKAT_Y, TABLETOP_Z + EYE_INIT_DIST, // eye position
-              LOOKAT_X, LOOKAT_Y, TABLETOP_Z,                 // center position
-              0.0, 1.0, 0.0);                                 // up vector
+
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+    gluLookAt(
+        
+        eyePos[0], eyePos[1], 2 * TABLETOP_Z - eyePos[2], // Eye. Should be the relfection of eye around the table top (stretched to inf)
+        
+        eyePos[0], eyePos[1], eyePos[2], // Direction -> Will be mapped to center
+        
+        1.0, 0.0, 0.0); // Up Axis -> camera should point upwards
 
     // STEP 4: Sets up the light source positions in the world space.
     glLightfv(GL_LIGHT0, GL_POSITION, light0Position);
@@ -177,12 +190,12 @@ void MakeReflectionImage( void )
     DrawRoom();
     DrawTeapot();
     DrawSphere();
-    // Note: We might not draw the table itself since we're capturing its reflection.
+    DrawCustomObject();
 
     // STEP 6: Read the correct color buffer into the correct texture object.
+    glReadBuffer(GL_BACK);
     glBindTexture(GL_TEXTURE_2D, reflectionTexObj);
     glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 0, 0, winWidth, winHeight, 0);
-  
 }
 
 
@@ -555,17 +568,52 @@ void SetUpTextureMaps( void )
     // WRITE YOUR CODE HERE.
     //****************************
 
-    // Set up the texture object reflectionTexObj for storing the reflection texture map
     glGenTextures(1, &reflectionTexObj);
     glBindTexture(GL_TEXTURE_2D, reflectionTexObj);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT); // causes the integer part of the s coordinate to be ignored;
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT); // causes the integer part of the t coordinate to be ignored;
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR); //  returns the weighted average of the four texture elements that are closest to the center of the pixel being textured.
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR); // The texture minifying function is used whenever the pixel being textured maps to an area greater than one texture element
 
-    // Make sure that mipmapping is used
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    if (ReadImageFile(spotsTexFile, &imageData,
+        &imageWidth, &imageHeight, &numComponents) == 0) exit(1);
+    if (numComponents != 3)
+    {
+        fprintf(stderr, "Error: Texture image is not in RGB format.\n");
+        exit(1);
+    }
+
+    glTexParameteri(GL_TEXTURE_2D, GL_GENERATE_MIPMAP, GL_TRUE); //Sets the automatic mipmap generation parameter to true
+
+    DeallocateImageData(&imageData);
+
+    
+    // This texture object is for the custom paper texture map.
+    glGenTextures(1, &paperTexObj);
+    glBindTexture(GL_TEXTURE_2D, paperTexObj);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-    // Make sure that whenever a new image is copied to the texture object,
-    // all other lower-resolution mipmap levels are automatically generated
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_GENERATE_MIPMAP, GL_TRUE);
+
+    if (ReadImageFile(paperTexFile, &imageData,
+        &imageWidth, &imageHeight, &numComponents) == 0) exit(1);
+    if (numComponents != 3)
+    {
+        fprintf(stderr, "Error: Texture image is not in RGB format.\n");
+        exit(1);
+    }
+
+    gluBuild2DMipmaps(GL_TEXTURE_2D, GL_RGB, imageWidth, imageHeight,
+        GL_RGB, GL_UNSIGNED_BYTE, imageData);
+
+    glBegin(GL_QUADS);
+
+    glEnd();
+
+    DeallocateImageData(&imageData);
+
 
 }
 
@@ -945,40 +993,19 @@ void DrawTable( void )
     // WRITE YOUR CODE HERE.
     //****************************
     
-    // Define the texture coordinates for the tabletop rectangle
-    float s0 = 0.0f, t0 = 0.0f; // Bottom-left corner
-    float s1 = 1.0f, t1 = 0.0f; // Bottom-right corner
-    float s2 = 1.0f, t2 = 1.0f; // Top-right corner
-    float s3 = 0.0f, t3 = 1.0f; // Top-left corner
-
-    // Define the vertices for the tabletop rectangle
-    float x0 = TABLETOP_X1, y0 = TABLETOP_Y1, z0 = TABLETOP_Z;
-    float x1 = TABLETOP_X2, y1 = TABLETOP_Y1, z1 = TABLETOP_Z;
-    float x2 = TABLETOP_X2, y2 = TABLETOP_Y2, z2 = TABLETOP_Z;
-    float x3 = TABLETOP_X1, y3 = TABLETOP_Y2, z3 = TABLETOP_Z;
-
-    // Define the subdivision steps for the tabletop rectangle
-    int uSteps = 10; // Example value, adjust as needed
-    int vSteps = 10; // Example value, adjust as needed
-    
-    // Draw the subdivided tabletop rectangle
-    SubdivideAndDrawQuad(uSteps, vSteps, s0, t0, x0, y0, z0, s1, t1, x1, y1, z1, s2, t2, x2, y2, z2, s3, t3, x3, y3, z3);
-
-    // The reflection on the tabletop should not be 100%
-    GLfloat reflectionIntensity = 0.7f;
-    // Assuming a generic wood color for the diffuse color
-    GLfloat diffuseColor[] = {0.6f, 0.4f, 0.2f, 1.0f};
-    glMaterialfv(GL_FRONT, GL_DIFFUSE, diffuseColor);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glEnable(GL_BLEND);
-    glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-    glColor4f(1.0f, 1.0f, 1.0f, reflectionIntensity);
-
-    // Draw the tabletop with the texture
     glBindTexture(GL_TEXTURE_2D, reflectionTexObj);
-    SetUpTextureMaps();
 
-    glDisable(GL_BLEND);
+    glNormal3f(0.0, 0.0, 1.0); // Normal vector.
+
+        
+    // Should be anti-clockwise order! (opposite order of bottom-table)
+
+    SubdivideAndDrawQuad(24, 24,
+        0.0, 0.0, TABLETOP_X1, TABLETOP_Y1, TABLETOP_Z,
+        0.0, 1.0, TABLETOP_X2, TABLETOP_Y1, TABLETOP_Z,
+        1.0, 1.0, TABLETOP_X2, TABLETOP_Y2, TABLETOP_Z,
+        1.0, 0.0, TABLETOP_X1, TABLETOP_Y2, TABLETOP_Z);
+
 
 // Sides.
 
@@ -1065,3 +1092,14 @@ void DrawTable( void )
     glutSolidCube( 1.0 );
     glPopMatrix();
 }
+
+
+/////////////////////////////////////////////////////////////////////////////
+// Draw a texture-mapped cube.
+/////////////////////////////////////////////////////////////////////////////
+
+void DrawCustomObject(void)
+{
+
+}
+
