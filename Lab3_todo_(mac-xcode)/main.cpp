@@ -1,6 +1,6 @@
 //============================================================
-// STUDENT NAME:
-// NUS User ID.:
+// STUDENT NAME: Wu Situ
+// NUS User ID.: A0277236X
 // COMMENTS TO GRADER:
 //
 // ============================================================
@@ -80,7 +80,7 @@ const char ceilingTexFile[] = "images/ceiling.jpg";
 const char brickTexFile[] = "images/brick.jpg";
 const char checkerTexFile[] = "images/checker.png";
 const char spotsTexFile[] = "images/spots.png";
-const char paperTexFile[] = "images/paper.jpg";
+const char sandTexFile[] = "images/sand.jpeg";  // Added sand texture for task 2
 
 
 
@@ -114,7 +114,7 @@ GLuint ceilingTexObj;
 GLuint brickTexObj;
 GLuint checkerTexObj;
 GLuint spotsTexObj;
-GLuint paperTexObj;
+GLuint sandTexObj;  // Added sand texture for task 2
 
 // Others.
 bool drawAxes = true;           // Draw world coordinate frame axes iff true.
@@ -128,7 +128,7 @@ void DrawRoom( void );
 void DrawTeapot( void );
 void DrawSphere( void );
 void DrawTable( void );
-void DrawCustomObject(void);
+void DrawCustomObject(void);  // Draw cube for task 2
 
 
 
@@ -159,40 +159,36 @@ void MakeReflectionImage( void )
     // WRITE YOUR CODE HERE.
     //****************************
     
-    // STEP 1: Clears the correct buffers.
+    // STEP 1
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    // STEP 2: Sets up the correct view volume for the imaginary viewpoint.
+    // STEP 2
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-    glFrustum( // Should basically be the table itself
+    glFrustum(
         TABLETOP_Y1 - eyePos[1], TABLETOP_Y2 - eyePos[1],
         TABLETOP_X1 - eyePos[0], TABLETOP_X2 - eyePos[0],
         eyePos[2] -  TABLETOP_Z, 1.5 *  SCENE_RADIUS); // Near and far plane
 
-    // STEP 3: Sets up the imaginary viewpoint.
-
+    // STEP 3
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
-    gluLookAt(
-        
-        eyePos[0], eyePos[1], 2 * TABLETOP_Z - eyePos[2], // Eye. Should be the relfection of eye around the table top (stretched to inf)
-        
-        eyePos[0], eyePos[1], eyePos[2], // Direction -> Will be mapped to center
-        
-        1.0, 0.0, 0.0); // Up Axis -> camera should point upwards
+    // Eye: hould be the relfection of eye around the table top (stretched to inf)
+    // Direction: Will be mapped to center
+    // Up: camera should point upwards
+    gluLookAt(eyePos[0], eyePos[1], 2 * TABLETOP_Z - eyePos[2], eyePos[0], eyePos[1], eyePos[2], 1.0, 0.0, 0.0);
 
-    // STEP 4: Sets up the light source positions in the world space.
+    // STEP 4
     glLightfv(GL_LIGHT0, GL_POSITION, light0Position);
     glLightfv(GL_LIGHT1, GL_POSITION, light1Position);
 
-    // STEP 5: Draws the scene (may not need to draw all objects).
+    // STEP 5
     DrawRoom();
     DrawTeapot();
     DrawSphere();
     DrawCustomObject();
 
-    // STEP 6: Read the correct color buffer into the correct texture object.
+    // STEP 6
     glReadBuffer(GL_BACK);
     glBindTexture(GL_TEXTURE_2D, reflectionTexObj);
     glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 0, 0, winWidth, winHeight, 0);
@@ -242,6 +238,7 @@ void MyDisplay( void )
     DrawTeapot();
     DrawSphere();
     DrawTable();
+    DrawCustomObject();
 
     glutSwapBuffers();
 }
@@ -570,10 +567,18 @@ void SetUpTextureMaps( void )
 
     glGenTextures(1, &reflectionTexObj);
     glBindTexture(GL_TEXTURE_2D, reflectionTexObj);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT); // causes the integer part of the s coordinate to be ignored;
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT); // causes the integer part of the t coordinate to be ignored;
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR); //  returns the weighted average of the four texture elements that are closest to the center of the pixel being textured.
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR); // The texture minifying function is used whenever the pixel being textured maps to an area greater than one texture element
+    
+    // causes the integer part of the s coordinate to be ignored;
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    
+    // causes the integer part of the t coordinate to be ignored;
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    
+    // returns the weighted average of the four texture elements that are closest to the center of the pixel being textured.
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    
+    // the texture minifying function is used whenever the pixel being textured maps to an area greater than one texture element
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 
     if (ReadImageFile(spotsTexFile, &imageData,
         &imageWidth, &imageHeight, &numComponents) == 0) exit(1);
@@ -583,21 +588,22 @@ void SetUpTextureMaps( void )
         exit(1);
     }
 
-    glTexParameteri(GL_TEXTURE_2D, GL_GENERATE_MIPMAP, GL_TRUE); //Sets the automatic mipmap generation parameter to true
+    //Sets the automatic mipmap generation parameter to true
+    glTexParameteri(GL_TEXTURE_2D, GL_GENERATE_MIPMAP, GL_TRUE);
 
     DeallocateImageData(&imageData);
 
     
-    // This texture object is for the custom paper texture map.
-    glGenTextures(1, &paperTexObj);
-    glBindTexture(GL_TEXTURE_2D, paperTexObj);
+    // This texture object is for the custom sand texture map.
+    glGenTextures(1, &sandTexObj);
+    glBindTexture(GL_TEXTURE_2D, sandTexObj);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_GENERATE_MIPMAP, GL_TRUE);
 
-    if (ReadImageFile(paperTexFile, &imageData,
+    if (ReadImageFile(sandTexFile, &imageData,
         &imageWidth, &imageHeight, &numComponents) == 0) exit(1);
     if (numComponents != 3)
     {
@@ -613,7 +619,6 @@ void SetUpTextureMaps( void )
     glEnd();
 
     DeallocateImageData(&imageData);
-
 
 }
 
@@ -998,8 +1003,7 @@ void DrawTable( void )
     glNormal3f(0.0, 0.0, 1.0); // Normal vector.
 
         
-    // Should be anti-clockwise order! (opposite order of bottom-table)
-
+    // anti-clockwise order (opposite order of bottom-table)
     SubdivideAndDrawQuad(24, 24,
         0.0, 0.0, TABLETOP_X1, TABLETOP_Y1, TABLETOP_Z,
         0.0, 1.0, TABLETOP_X2, TABLETOP_Y1, TABLETOP_Z,
@@ -1100,6 +1104,37 @@ void DrawTable( void )
 
 void DrawCustomObject(void)
 {
+    
+    float cubeSize = 0.45f; // Size of the cube
+    
+    // Material properties for the cube
+    GLfloat matAmbient[] = { 0.8, 0.8, 0.8, 1.0 };
+    GLfloat matDiffuse[] = { 0.8, 0.8, 0.8, 1.0 };
+    GLfloat matSpecular[] = { 1.0, 1.0, 1.0, 1.0 };
+    GLfloat matShininess[] = { 128.0 };
+    glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, matAmbient);
+    glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, matDiffuse);
+    glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, matSpecular);
+    glMaterialfv(GL_FRONT_AND_BACK, GL_SHININESS, matShininess);
 
+    glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+    glBindTexture(GL_TEXTURE_2D, sandTexObj); // Sand texture
+
+    // Disable back-face culling.
+    glDisable(GL_CULL_FACE);
+
+    glPushMatrix();
+    
+    // Position the cube on the table top
+    glTranslated(0.5, -0.9, TABLETOP_Z + 0.22); // Place the cube on the tabletop
+
+    // Draw the cube using GLUT's built-in function
+    glutSolidCube(cubeSize);
+
+    glPopMatrix();
+
+    // Enable back-face culling.
+    glEnable(GL_CULL_FACE);
+    
 }
 
